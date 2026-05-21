@@ -79,8 +79,12 @@ Rules for extraction:
   const content = message.content[0]
   if (content.type !== 'text') throw new Error('Unexpected response type')
 
+  // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+  const raw = content.text.trim()
+  const jsonText = raw.startsWith('```') ? raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '') : raw
+
   try {
-    return JSON.parse(content.text)
+    return JSON.parse(jsonText)
   } catch {
     return {
       summary: "Thanks for sharing — let me put together some ideas based on what you've described.",
@@ -157,8 +161,11 @@ Output ONLY a valid JSON array of the same cards with updated title, strategyTex
   const content = message.content[0]
   if (content.type !== 'text') return cards
 
+  const raw = content.text.trim()
+  const jsonText = raw.startsWith('```') ? raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '') : raw
+
   try {
-    return JSON.parse(content.text)
+    return JSON.parse(jsonText)
   } catch {
     return cards
   }
@@ -205,8 +212,11 @@ If a field cannot be found, use null or empty array. Never fabricate data.`,
   const content = message.content[0]
   if (content.type !== 'text') throw new Error('Unexpected response type')
 
+  const rawIep = content.text.trim()
+  const iepJson = rawIep.startsWith('```') ? rawIep.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '') : rawIep
+
   try {
-    return JSON.parse(content.text)
+    return JSON.parse(iepJson)
   } catch {
     return {
       goals: [],

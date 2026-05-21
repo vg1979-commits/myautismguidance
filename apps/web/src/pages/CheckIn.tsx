@@ -196,6 +196,8 @@ export function CheckIn() {
       const status = (err as { response?: { status?: number } })?.response?.status
       if (status === 409) {
         setStep('already-done')
+      } else if (status === 404) {
+        navigate('/onboarding/welcome')
       } else {
         addBubble({ type: 'app', text: "I had trouble processing that. Could you try again?" })
         setStep('open')
