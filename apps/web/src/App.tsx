@@ -59,14 +59,18 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 // Wraps authenticated app routes — redirects to onboarding if no child profile
 function RequireProfile({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded, user } = useUser()
-  const { children: storedChildren, setChildren, setActiveChildId } = useAppStore()
+  const { children: storedChildren, clerkUserId: storedUserId, setChildren, setActiveChildId } = useAppStore()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) { setChecking(false); return }
-    if (storedChildren.length > 0) { setChecking(false); return }
+    if (!isLoaded || !isSignedIn || !user) { setChecking(false); return }
 
-    // Try fetching from API in case store was cleared (e.g. new device/browser)
+    // Always fetch from API to verify children belong to the current user.
+    // The store-level setClerkUser handles clearing on user switch, but we
+    // still verify here so a same-session account switch is caught too.
+    const storeMatchesUser = storedUserId === user.id
+    if (storeMatchesUser && storedChildren.length > 0) { setChecking(false); return }
+
     getChildren()
       .then((kids) => {
         if (kids.length > 0) {
@@ -76,7 +80,7 @@ function RequireProfile({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {})
       .finally(() => setChecking(false))
-  }, [isLoaded, isSignedIn])
+  }, [isLoaded, isSignedIn, user?.id])
 
   if (!isLoaded || checking) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">

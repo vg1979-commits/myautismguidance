@@ -34,13 +34,27 @@ interface AppStore {
   mergeOnboardingData: (data: Record<string, unknown>) => void
 }
 
+const CHILD_RESET = {
+  activeChildId: null,
+  children: [],
+  currentCards: [],
+  onboardingStep: 1,
+  onboardingData: {},
+}
+
 export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
       clerkUserId: null,
       clerkEmail: null,
-      setClerkUser: (id, email) => set({ clerkUserId: id, clerkEmail: email }),
-      clearClerkUser: () => set({ clerkUserId: null, clerkEmail: null }),
+      setClerkUser: (id, email) => set((s) => {
+        // Different user logging in — clear all previous user's data
+        if (s.clerkUserId && s.clerkUserId !== id) {
+          return { ...CHILD_RESET, clerkUserId: id, clerkEmail: email }
+        }
+        return { clerkUserId: id, clerkEmail: email }
+      }),
+      clearClerkUser: () => set({ clerkUserId: null, clerkEmail: null, ...CHILD_RESET }),
 
       activeChildId: null,
       setActiveChildId: (id) => set({ activeChildId: id }),
@@ -65,6 +79,7 @@ export const useAppStore = create<AppStore>()(
     {
       name: 'mag-app-store',
       partialize: (s) => ({
+        clerkUserId: s.clerkUserId,   // persisted so we can detect user switches on reload
         activeChildId: s.activeChildId,
         children: s.children,
         currentCards: s.currentCards,
