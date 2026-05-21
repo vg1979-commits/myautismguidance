@@ -22,15 +22,17 @@ interface CandidateCard {
   whyNow: string
 }
 
-// Keywords that indicate Tier 1 safety concerns requiring escalation
-const SAFETY_KEYWORDS = [
+// Keywords that indicate Tier 1 safety concerns requiring escalation.
+// 'hurt' is intentionally excluded — it produces false positives on emotional language
+// ("she is hurt that..."). 'hurting' still catches active physical harm.
+export const SAFETY_KEYWORDS = [
   'hit', 'hitting', 'bite', 'biting', 'scratch', 'scratching',
-  'self-harm', 'self harm', 'hurt', 'hurting', 'sib',
+  'self-harm', 'self harm', 'hurting', 'sib',
   'aggression', 'aggressive', 'head-bang', 'head bang',
   'threw', 'throwing', 'violent', 'destroy', 'destroying',
 ]
 
-function hasSafetyFlag(triggers: string[]): boolean {
+export function hasSafetyFlag(triggers: string[]): boolean {
   const joined = triggers.join(' ').toLowerCase()
   return SAFETY_KEYWORDS.some((kw) => joined.includes(kw))
 }
