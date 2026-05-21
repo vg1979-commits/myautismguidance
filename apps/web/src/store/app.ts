@@ -3,6 +3,12 @@ import { persist } from 'zustand/middleware'
 import type { ChildProfile, ActionCard } from '@myautismguidance/shared-types'
 
 interface AppStore {
+  // Clerk identity (set on login, used in API headers)
+  clerkUserId: string | null
+  clerkEmail: string | null
+  setClerkUser: (id: string, email: string) => void
+  clearClerkUser: () => void
+
   // Active child
   activeChildId: string | null
   setActiveChildId: (id: string | null) => void
@@ -31,6 +37,11 @@ interface AppStore {
 export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
+      clerkUserId: null,
+      clerkEmail: null,
+      setClerkUser: (id, email) => set({ clerkUserId: id, clerkEmail: email }),
+      clearClerkUser: () => set({ clerkUserId: null, clerkEmail: null }),
+
       activeChildId: null,
       setActiveChildId: (id) => set({ activeChildId: id }),
 

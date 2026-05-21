@@ -18,6 +18,23 @@ import { Profile } from '@/pages/Profile'
 import { useAppStore } from '@/store/app'
 import { getChildren } from '@/lib/api'
 
+// Syncs Clerk identity into Zustand so api.ts interceptor can read it
+function ClerkUserSync() {
+  const { isLoaded, isSignedIn, user } = useUser()
+  const { setClerkUser, clearClerkUser } = useAppStore()
+
+  useEffect(() => {
+    if (!isLoaded) return
+    if (isSignedIn && user) {
+      setClerkUser(user.id, user.primaryEmailAddress?.emailAddress ?? '')
+    } else {
+      clearClerkUser()
+    }
+  }, [isLoaded, isSignedIn, user?.id])
+
+  return null
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -74,6 +91,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ClerkUserSync />
         <Routes>
           {/* Public */}
           <Route path="/landing" element={<Landing />} />

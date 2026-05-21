@@ -29,6 +29,8 @@ export async function childrenRoutes(app: FastifyInstance) {
     const clerkId = req.headers['x-user-id'] as string
     const email = req.headers['x-user-email'] as string || 'unknown@example.com'
 
+    if (!clerkId) return reply.status(401).send({ error: 'Unauthorized' })
+
     // Upsert user
     let user = await prisma.user.findFirst({ where: { clerkId } })
     if (!user) {

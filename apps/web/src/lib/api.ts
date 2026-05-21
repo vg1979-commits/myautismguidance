@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAppStore } from '@/store/app'
 import type {
   ChildProfile,
   CheckIn,
@@ -15,8 +16,10 @@ const client = axios.create({
 })
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('mag_session')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  // Read Clerk user identity from the Zustand store (set in App.tsx on auth load)
+  const { clerkUserId, clerkEmail } = useAppStore.getState()
+  if (clerkUserId) config.headers['x-user-id'] = clerkUserId
+  if (clerkEmail) config.headers['x-user-email'] = clerkEmail
   return config
 })
 
