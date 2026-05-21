@@ -275,4 +275,27 @@ export async function checkinRoutes(app: FastifyInstance) {
       })
     }
   )
+
+  // GET /children/:id/checkins — full history, newest first
+  app.get<{ Params: { id: string } }>(
+    '/children/:id/checkins',
+    async (req) => {
+      const checkins = await prisma.checkIn.findMany({
+        where: { childId: req.params.id },
+        orderBy: { submittedAt: 'desc' },
+        include: { cards: { select: { id: true, title: true, domainCode: true, setting: true } } },
+      })
+      return checkins.map((c) => ({
+        id: c.id,
+        weekNumber: c.weekNumber,
+        submittedAt: c.submittedAt,
+        caregiverTone: c.caregiverTone,
+        extractionConfidence: c.extractionConfidence,
+        rawText: c.rawText,
+        signalJson: c.signalJson ? JSON.parse(c.signalJson) : null,
+        cardCount: c.cards.length,
+        cards: c.cards,
+      }))
+    }
+  )
 }

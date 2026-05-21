@@ -79,6 +79,23 @@ export async function getCurrentCheckin(childId: string): Promise<CheckIn | null
   return data
 }
 
+export async function getCheckinHistory(childId: string): Promise<CheckInHistoryItem[]> {
+  const { data } = await client.get(`/children/${childId}/checkins`)
+  return data
+}
+
+export interface CheckInHistoryItem {
+  id: string
+  weekNumber: number
+  submittedAt: string
+  caregiverTone: string
+  extractionConfidence: number
+  rawText: string
+  signalJson: import('@myautismguidance/shared-types').CheckInSignal | null
+  cardCount: number
+  cards: { id: string; title: string; domainCode: string; setting: string }[]
+}
+
 // ── Cards ─────────────────────────────────────────────────────────────────────
 
 export async function getCurrentCards(childId: string): Promise<ActionCard[]> {

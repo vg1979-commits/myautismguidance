@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, MessageSquare, BarChart2, Share2, User, LogOut } from 'lucide-react'
+import { Home, MessageSquare, History, BarChart2, Share2, User, LogOut } from 'lucide-react'
 import { useClerk } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/app'
@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/app'
 const navItems = [
   { to: '/', icon: Home, label: 'Home', exact: true },
   { to: '/checkin', icon: MessageSquare, label: 'Check-in' },
+  { to: '/history', icon: History, label: 'Check-in history' },
   { to: '/progress', icon: BarChart2, label: 'Progress' },
   { to: '/share', icon: Share2, label: 'Share' },
   { to: '/profile', icon: User, label: 'Profile' },

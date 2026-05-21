@@ -10,6 +10,7 @@ import { OnboardingBaseline } from '@/pages/onboarding/Baseline'
 import { IEPUpload } from '@/pages/onboarding/IEPUpload'
 import { Dashboard } from '@/pages/Dashboard'
 import { CheckIn } from '@/pages/CheckIn'
+import { CheckInHistory } from '@/pages/CheckInHistory'
 import { CardDetail } from '@/pages/CardDetail'
 import { Progress } from '@/pages/Progress'
 import { DomainDetail } from '@/pages/DomainDetail'
@@ -121,6 +122,7 @@ export default function App() {
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/checkin" element={<CheckIn />} />
+            <Route path="/history" element={<CheckInHistory />} />
             <Route path="/cards/:cardId" element={<CardDetail />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/progress/domain/:domainCode" element={<DomainDetail />} />
