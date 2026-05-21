@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
-import { ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, ChevronDown, ChevronUp, ArrowRight, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SettingBadge } from '@/components/ui/Badge'
 import { CardSkeleton } from '@/components/ui/Skeleton'
@@ -11,66 +10,6 @@ import { cn, trendIcon, trendColor } from '@/lib/utils'
 import { DOMAIN_LABELS } from '@myautismguidance/shared-types'
 import type { ActionCard } from '@myautismguidance/shared-types'
 
-const MOCK_CARDS: ActionCard[] = [
-  {
-    id: '1',
-    childId: 'c1',
-    checkinId: 'ci1',
-    slotType: 'home-strategy',
-    domainCode: 'regulation',
-    setting: 'home',
-    title: 'Use the "calm countdown" before transitions',
-    strategyText:
-      "Five minutes before any transition (dinner, leaving, screens off), give a verbal countdown. This reduces the surprise that triggers dysregulation at transitions.",
-    scriptText:
-      '"Five more minutes, then we\'re getting ready for dinner. I\'ll give you a heads up when it\'s time."',
-    watchForPositive: ['Smoother transitions with less protest', 'Child starts preparing on their own'],
-    watchForNegative: ['Still melting down — try 10-minute warning instead'],
-    whyNow: "You mentioned transitions are a big source of meltdowns this week. This strategy directly targets surprise-triggered dysregulation.",
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    childId: 'c1',
-    checkinId: 'ci1',
-    slotType: 'school-request',
-    domainCode: 'social',
-    setting: 'school',
-    title: 'Request a lunch buddy program',
-    strategyText:
-      "Ask the teacher to pair your child with a patient peer during unstructured lunch time. A structured social opportunity reduces the anxiety of open social situations.",
-    scriptText:
-      '"Could we try pairing [child] with a lunch buddy for the next two weeks? Even once or twice would help."',
-    watchForPositive: ['Mentions lunch by name', 'Asks about the friend'],
-    watchForNegative: ['Still avoiding the cafeteria — escalate to school counselor'],
-    whyNow: "You said lunch is hard and your child seems isolated. A lunch buddy is low-stakes and teacher-manageable.",
-    generatedAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    childId: 'c1',
-    checkinId: 'ci1',
-    slotType: 'strength',
-    domainCode: 'communication',
-    setting: 'home',
-    title: 'Celebrate the detailed conversations',
-    strategyText:
-      "Your child's ability to talk in depth about topics they love is a genuine strength. Use these conversations intentionally — they're practicing turn-taking, sustained attention, and social reciprocity.",
-    scriptText: '"Tell me more about that. What happened next?" (and mean it)',
-    watchForPositive: ['Longer conversations', 'Initiates topics more often'],
-    watchForNegative: [],
-    whyNow: "You noted your child loves Minecraft and will talk about it at length. This is working communication — build on it.",
-    generatedAt: new Date().toISOString(),
-  },
-]
-
-const MOCK_TREND = [
-  { domain: 'regulation' as const, direction: 'improving' as const },
-  { domain: 'social' as const, direction: 'stable' as const },
-  { domain: 'communication' as const, direction: 'improving' as const },
-  { domain: 'sensory' as const, direction: 'deteriorating' as const },
-]
-
 function ActionCardItem({ card }: { card: ActionCard }) {
   const [expanded, setExpanded] = useState(false)
   const [rated, setRated] = useState<'up' | 'down' | null>(card.rating || null)
@@ -79,7 +18,7 @@ function ActionCardItem({ card }: { card: ActionCard }) {
   async function handleRate(r: 'up' | 'down') {
     if (ratingLoading) return
     setRatingLoading(true)
-    setRated(r) // optimistic
+    setRated(r)
     try {
       await rateCard(card.id, r)
     } catch {
@@ -101,7 +40,6 @@ function ActionCardItem({ card }: { card: ActionCard }) {
       <h3 className="font-semibold text-ink-1 mb-2">{card.title}</h3>
       <p className="text-sm text-ink-3 leading-relaxed mb-4">{card.strategyText}</p>
 
-      {/* Expandable sections */}
       {expanded && (
         <div className="space-y-3 mb-4 animate-[fadeIn_200ms_ease-out]">
           <div className="bg-accent-soft rounded-md p-4">
@@ -187,8 +125,25 @@ function ActionCardItem({ card }: { card: ActionCard }) {
   )
 }
 
+function EmptyState({ childName, navigate }: { childName: string; navigate: (path: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-16 px-5">
+      <div className="w-14 h-14 rounded-pill bg-accent-soft flex items-center justify-center mb-4">
+        <MessageSquare size={24} strokeWidth={1.5} className="text-accent" />
+      </div>
+      <h3 className="font-semibold text-ink-1 mb-2">No plan yet this week</h3>
+      <p className="text-sm text-ink-3 max-w-[320px] mb-6 leading-relaxed">
+        Do your first check-in to tell us how {childName}'s week went. You'll get a personalized
+        plan — 3 to 5 specific things to try — in about 30 seconds.
+      </p>
+      <Button onClick={() => navigate('/checkin')}>
+        Start check-in <ArrowRight size={14} />
+      </Button>
+    </div>
+  )
+}
+
 export function Dashboard() {
-  const { user } = useUser()
   const navigate = useNavigate()
   const { activeChildId, children, currentCards, setCurrentCards } = useAppStore()
   const activeChild = children.find((c) => c.id === activeChildId)
@@ -207,10 +162,12 @@ export function Dashboard() {
           getCurrentCards(activeChildId),
           getCurrentCheckin(activeChildId),
         ])
-        setCurrentCards(cards.length > 0 ? cards : MOCK_CARDS)
+        // Only show real cards — no mock data
+        setCurrentCards(cards)
         setCheckinDone(!!checkin)
       } catch {
-        setCurrentCards(MOCK_CARDS)
+        // API unreachable — show empty state, not mock data
+        setCurrentCards([])
       } finally {
         setLoading(false)
       }
@@ -218,7 +175,6 @@ export function Dashboard() {
     load()
   }, [activeChildId])
 
-  const cards = currentCards.length > 0 ? currentCards : MOCK_CARDS
   const now = new Date()
   const weekStart = new Date(now)
   weekStart.setDate(now.getDate() - now.getDay())
@@ -229,7 +185,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Top header (mobile) */}
+      {/* Mobile header */}
       <div className="md:hidden h-14 border-b border-line bg-white flex items-center px-5 justify-between sticky top-0 z-10">
         <span className="font-serif text-lg text-ink-1">myautismguidance</span>
         {activeChild && (
@@ -240,8 +196,8 @@ export function Dashboard() {
       </div>
 
       <div className="max-w-dashboard mx-auto px-5 md:px-8 py-6 md:py-8">
-        {/* Check-in banner */}
-        {!checkinDone && (
+        {/* Check-in banner — only shows if check-in not yet done and there are existing cards from previous weeks */}
+        {!checkinDone && currentCards.length > 0 && (
           <div className="bg-accent-soft border border-accent/20 rounded-md p-4 mb-6 flex items-center justify-between gap-4">
             <div>
               <p className="font-medium text-accent">
@@ -249,11 +205,7 @@ export function Dashboard() {
               </p>
               <p className="text-sm text-ink-3 mt-0.5">How was this week?</p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => navigate('/checkin')}
-              className="flex-shrink-0"
-            >
+            <Button size="sm" onClick={() => navigate('/checkin')} className="flex-shrink-0">
               Check in <ArrowRight size={14} />
             </Button>
           </div>
@@ -265,14 +217,20 @@ export function Dashboard() {
             <h2 className="font-serif text-2xl text-ink-1 mb-1">This week's plan</h2>
             <p className="text-sm text-ink-4 mb-5">{weekRange}</p>
 
-            <div className="space-y-4">
-              {loading
-                ? Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
-                : cards.map((card) => <ActionCardItem key={card.id} card={card} />)}
-            </div>
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
+              </div>
+            ) : currentCards.length > 0 ? (
+              <div className="space-y-4">
+                {currentCards.map((card) => <ActionCardItem key={card.id} card={card} />)}
+              </div>
+            ) : (
+              <EmptyState childName={childName} navigate={navigate} />
+            )}
           </div>
 
-          {/* Right: Summary panel (desktop) */}
+          {/* Right: Summary panel (desktop only) */}
           <div className="hidden lg:flex flex-col gap-5">
             {activeChild && (
               <div className="card p-5">
@@ -283,27 +241,34 @@ export function Dashboard() {
                   <div>
                     <p className="font-semibold text-ink-1">{activeChild.firstName}</p>
                     <p className="text-xs text-ink-4">
-                      {activeChild.schoolSetting?.replace(/-/g, ' ')}
+                      {activeChild.schoolSetting?.replace(/-/g, ' ') || 'Profile set up'}
                     </p>
                   </div>
                 </div>
 
-                {/* Trend strip */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-ink-4 uppercase tracking-caps">Current trends</p>
-                  {MOCK_TREND.map(({ domain, direction }) => (
-                    <div key={domain} className="flex items-center justify-between">
-                      <span className="text-sm text-ink-3">{DOMAIN_LABELS[domain]}</span>
-                      <span className={cn('text-sm font-medium', trendColor(direction))}>
-                        {trendIcon(direction)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                {currentCards.length === 0 ? (
+                  <div className="text-center py-2">
+                    <p className="text-sm text-ink-4">
+                      Complete your first check-in to see trends here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-ink-4 uppercase tracking-caps">This week</p>
+                    <p className="text-sm text-ink-3">{currentCards.length} cards in your plan</p>
+                  </div>
+                )}
               </div>
             )}
 
             <div className="card p-5 space-y-3">
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => navigate('/checkin')}
+              >
+                <MessageSquare size={14} /> {checkinDone ? 'Update check-in' : 'Start check-in'}
+              </Button>
               <Button variant="secondary" className="w-full" onClick={() => navigate('/share')}>
                 Share with school or therapist
               </Button>
@@ -314,8 +279,8 @@ export function Dashboard() {
 
             <div className="p-4 bg-paper-2 rounded-md border border-line">
               <p className="text-xs text-ink-4 leading-relaxed">
-                These cards are based on what you shared in your check-in. Rate them after trying
-                so the plan gets more accurate over time.
+                Cards are generated from your check-in. Rate them after trying so the plan
+                gets more accurate over time.
               </p>
             </div>
           </div>

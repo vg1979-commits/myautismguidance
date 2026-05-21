@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -15,6 +16,7 @@ import { DomainDetail } from '@/pages/DomainDetail'
 import { ExportHub } from '@/pages/ExportHub'
 import { Profile } from '@/pages/Profile'
 import { useAppStore } from '@/store/app'
+import { getChildren } from '@/lib/api'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,13 +38,35 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Wraps authenticated app routes — redirects to onboarding if no child profile
+function RequireProfile({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, isLoaded, user } = useUser()
+  const { children: storedChildren, setChildren, setActiveChildId } = useAppStore()
+  const [checking, setChecking] = useState(true)
 
-function RequireOnboarding({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded } = useUser()
-  const children_ = useAppStore((s) => s.children)
-  if (!isLoaded) return null
-  if (!isSignedIn) return <Navigate to="/auth" replace />
-  if (children_.length === 0) return <Navigate to="/onboarding/welcome" replace />
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) { setChecking(false); return }
+    if (storedChildren.length > 0) { setChecking(false); return }
+
+    // Try fetching from API in case store was cleared (e.g. new device/browser)
+    getChildren()
+      .then((kids) => {
+        if (kids.length > 0) {
+          setChildren(kids)
+          setActiveChildId(kids[0].id)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false))
+  }, [isLoaded, isSignedIn])
+
+  if (!isLoaded || checking) return (
+    <div className="min-h-screen bg-paper flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+  if (!isSignedIn) return <Navigate to="/landing" replace />
+  if (storedChildren.length === 0) return <Navigate to="/onboarding/welcome" replace />
   return <>{children}</>
 }
 
@@ -69,12 +93,12 @@ export default function App() {
             element={<RequireAuth><IEPUpload /></RequireAuth>}
           />
 
-          {/* Authenticated app */}
+          {/* Authenticated app — redirects to onboarding if no child profile */}
           <Route
             element={
-              <RequireAuth>
+              <RequireProfile>
                 <AppLayout />
-              </RequireAuth>
+              </RequireProfile>
             }
           >
             <Route path="/" element={<Dashboard />} />

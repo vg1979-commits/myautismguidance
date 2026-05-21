@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom'
-import { Home, MessageSquare, BarChart2, Share2, User } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { Home, MessageSquare, BarChart2, Share2, User, LogOut } from 'lucide-react'
+import { useClerk } from '@clerk/clerk-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/app'
 
@@ -16,6 +17,13 @@ export function Sidebar() {
   const activeChildId = useAppStore((s) => s.activeChildId)
   const setActiveChildId = useAppStore((s) => s.setActiveChildId)
   const activeChild = children.find((c) => c.id === activeChildId)
+  const { signOut } = useClerk()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/landing')
+  }
 
   return (
     <aside className="hidden md:flex flex-col w-[248px] min-h-screen border-r border-line bg-white fixed top-0 left-0">
@@ -73,8 +81,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-line">
-        <p className="text-2xs text-ink-4">
+      <div className="px-3 py-4 border-t border-line space-y-2">
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-ink-4 hover:bg-paper-2 hover:text-ink-2 transition-colors duration-1"
+        >
+          <LogOut size={16} strokeWidth={1.5} />
+          Sign out
+        </button>
+        <p className="text-2xs text-ink-4 px-2">
           Not a clinical tool. Always consult your child's providers.
         </p>
       </div>
