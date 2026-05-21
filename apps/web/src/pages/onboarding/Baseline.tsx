@@ -39,7 +39,8 @@ export function OnboardingBaseline() {
   const [loading, setLoading] = useState(false)
 
   // Step 2 state
-  const [dob, setDob] = useState('')
+  const [birthYear, setBirthYear] = useState<number | ''>('')
+  const [birthMonth, setBirthMonth] = useState<number | ''>('')
   const [diagnosisStatus, setDiagnosisStatus] = useState<DiagnosisStatus>('suspected')
   const [schoolSettings, setSchoolSettings] = useState<SchoolSetting[]>([])
 
@@ -67,7 +68,8 @@ export function OnboardingBaseline() {
     setLoading(true)
     try {
       await updateChild(activeChildId, {
-        dob,
+        birthYear: birthYear !== '' ? birthYear : undefined,
+        birthMonth: birthMonth !== '' ? birthMonth : undefined,
         diagnosisStatus,
         schoolSetting: schoolSettings[0],
         specialInterests: interests.split(',').map((s) => s.trim()).filter(Boolean),
@@ -127,13 +129,29 @@ export function OnboardingBaseline() {
             <div className="bubble-app">Tell me a bit more about {childName}.</div>
 
             <div>
-              <label className="text-sm font-medium text-ink-2 block mb-2">Date of birth</label>
-              <input
-                type="date"
-                value={dob}
-                onChange={(e) => setDob(e.target.value)}
-                className="w-full rounded-sm border border-line-strong bg-white px-3 py-2 text-base text-ink-2 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-              />
+              <label className="text-sm font-medium text-ink-2 block mb-2">Month and year of birth</label>
+              <div className="flex gap-3">
+                <select
+                  value={birthMonth}
+                  onChange={(e) => setBirthMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="flex-1 rounded-sm border border-line-strong bg-white px-3 py-2 text-base text-ink-2 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">Month</option>
+                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                    <option key={i + 1} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-28 rounded-sm border border-line-strong bg-white px-3 py-2 text-base text-ink-2 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">Year</option>
+                  {Array.from({ length: 16 }, (_, i) => new Date().getFullYear() - 2 - i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>

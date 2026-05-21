@@ -1,16 +1,10 @@
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../db/client.js'
 import { v4 as uuidv4 } from 'uuid'
+import { computeAgeBand } from '../lib/age.js'
 
-function computeAgeBand(dob?: string): string | null {
-  if (!dob) return null
-  const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000))
-  if (age < 2) return null
-  if (age <= 4) return '2-4'
-  if (age <= 7) return '5-7'
-  if (age <= 10) return '8-10'
-  if (age <= 13) return '11-13'
-  return '14-17'
+function withLiveAgeBand<T extends { birthYear?: number | null; birthMonth?: number | null }>(child: T) {
+  return { ...child, ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined }
 }
 
 export async function childrenRoutes(app: FastifyInstance) {
@@ -22,16 +16,18 @@ export async function childrenRoutes(app: FastifyInstance) {
     const user = await prisma.user.findFirst({ where: { clerkId: userId } })
     if (!user) return []
 
-    return prisma.childProfile.findMany({
+    const kids = await prisma.childProfile.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'asc' },
     })
+    return kids.map((k) => withLiveAgeBand({ ...k, specialInterests: JSON.parse(k.specialInterests) }))
   })
 
   // POST /children
   app.post<{ Body: {
     firstName: string
-    dob?: string
+    birthYear?: number
+    birthMonth?: number
     diagnosisStatus?: string
     schoolSetting?: string
     specialInterests?: string[]
@@ -50,14 +46,12 @@ export async function childrenRoutes(app: FastifyInstance) {
       })
     }
 
-    const ageBand = computeAgeBand(req.body.dob)
-
     const child = await prisma.childProfile.create({
       data: {
         userId: user.id,
         firstName: req.body.firstName,
-        dob: req.body.dob,
-        ageBand: ageBand ?? undefined,
+        birthYear: req.body.birthYear ?? null,
+        birthMonth: req.body.birthMonth ?? null,
         diagnosisStatus: req.body.diagnosisStatus || 'suspected',
         schoolSetting: req.body.schoolSetting,
         specialInterests: JSON.stringify(req.body.specialInterests || []),
@@ -65,17 +59,14 @@ export async function childrenRoutes(app: FastifyInstance) {
       },
     })
 
-    return {
-      ...child,
-      specialInterests: JSON.parse(child.specialInterests),
-    }
+    return withLiveAgeBand({ ...child, specialInterests: JSON.parse(child.specialInterests) })
   })
 
   // GET /children/:id
   app.get<{ Params: { id: string } }>('/children/:id', async (req, reply) => {
     const child = await prisma.childProfile.findUnique({ where: { id: req.params.id } })
     if (!child) return reply.status(404).send({ error: 'Not found' })
-    return { ...child, specialInterests: JSON.parse(child.specialInterests) }
+    return withLiveAgeBand({ ...child, specialInterests: JSON.parse(child.specialInterests) })
   })
 
   // PATCH /children/:id
@@ -88,7 +79,7 @@ export async function childrenRoutes(app: FastifyInstance) {
       where: { id: req.params.id },
       data,
     })
-    return { ...child, specialInterests: JSON.parse(child.specialInterests) }
+    return withLiveAgeBand({ ...child, specialInterests: JSON.parse(child.specialInterests) })
   })
 
   // POST /children/:id/baseline

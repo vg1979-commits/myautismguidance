@@ -9,8 +9,9 @@ export interface ChildProfile {
   id: string
   userId: string
   firstName: string
-  dob?: string
-  ageBand?: AgeBand
+  birthYear?: number
+  birthMonth?: number
+  ageBand?: AgeBand    // computed live — not stored; present in API responses only
   diagnosisConfirmed: boolean
   diagnosisStatus: DiagnosisStatus
   schoolSetting?: SchoolSetting

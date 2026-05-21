@@ -212,7 +212,7 @@ export function ExportHub() {
                   </div>
                   {record.downloadUrl && (
                     <button
-                      onClick={() => window.open(record.downloadUrl, '_blank')}
+                      onClick={() => window.open(record.downloadUrl ?? undefined, '_blank')}
                       className="text-ink-4 hover:text-accent transition-colors"
                       title="Open document"
                     >

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { prisma } from '../db/client.js'
 import { extractSignals, personalizeCards } from '../llm/anthropic.js'
 import { generateCandidateCards } from '../engine/cards/generator.js'
+import { computeAgeBand } from '../lib/age.js'
 
 function getWeekNumber(): number {
   const now = new Date()
@@ -45,7 +46,7 @@ export async function checkinRoutes(app: FastifyInstance) {
           text,
           {
             firstName: child.firstName,
-            ageBand: child.ageBand || undefined,
+            ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined,
             diagnosisStatus: child.diagnosisStatus,
             schoolSetting: child.schoolSetting || undefined,
           },
@@ -86,7 +87,7 @@ export async function checkinRoutes(app: FastifyInstance) {
           candidateCards,
           {
             firstName: child.firstName,
-            ageBand: child.ageBand || undefined,
+            ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined,
             specialInterests: JSON.parse(child.specialInterests || '[]'),
             schoolSetting: child.schoolSetting || undefined,
           },
@@ -158,7 +159,7 @@ export async function checkinRoutes(app: FastifyInstance) {
           combinedText,
           {
             firstName: child.firstName,
-            ageBand: child.ageBand || undefined,
+            ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined,
             diagnosisStatus: child.diagnosisStatus,
             schoolSetting: child.schoolSetting || undefined,
           },
@@ -220,7 +221,7 @@ export async function checkinRoutes(app: FastifyInstance) {
           candidateCards,
           {
             firstName: child.firstName,
-            ageBand: child.ageBand || undefined,
+            ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined,
             specialInterests: JSON.parse(child.specialInterests || '[]'),
             schoolSetting: child.schoolSetting || undefined,
           },

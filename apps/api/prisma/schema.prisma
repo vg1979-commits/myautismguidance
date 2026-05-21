@@ -21,8 +21,8 @@ model ChildProfile {
   userId             String
   user               User                @relation(fields: [userId], references: [id])
   firstName          String
-  dob                String?
-  ageBand            String?
+  birthYear          Int?
+  birthMonth         Int?
   diagnosisConfirmed Boolean             @default(false)
   diagnosisStatus    String              @default("suspected")
   schoolSetting      String?

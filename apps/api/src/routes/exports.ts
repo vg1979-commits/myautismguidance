@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../db/client.js'
 import { generateExportContent } from '../llm/anthropic.js'
+import { computeAgeBand } from '../lib/age.js'
 
 const EXPORT_TITLES: Record<string, string> = {
   'iep-summary': 'IEP Advocacy Summary',
@@ -47,7 +48,7 @@ export async function exportRoutes(app: FastifyInstance) {
       depth,
       {
         firstName: child.firstName,
-        ageBand: child.ageBand ?? undefined,
+        ageBand: computeAgeBand(child.birthYear, child.birthMonth) ?? undefined,
         diagnosisStatus: child.diagnosisStatus,
         schoolSetting: child.schoolSetting ?? undefined,
         specialInterests: JSON.parse(child.specialInterests || '[]'),
