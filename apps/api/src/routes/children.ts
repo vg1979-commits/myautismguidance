@@ -2,6 +2,17 @@ import type { FastifyInstance } from 'fastify'
 import { prisma } from '../db/client.js'
 import { v4 as uuidv4 } from 'uuid'
 
+function computeAgeBand(dob?: string): string | null {
+  if (!dob) return null
+  const age = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000))
+  if (age < 2) return null
+  if (age <= 4) return '2-4'
+  if (age <= 7) return '5-7'
+  if (age <= 10) return '8-10'
+  if (age <= 13) return '11-13'
+  return '14-17'
+}
+
 export async function childrenRoutes(app: FastifyInstance) {
   // GET /children
   app.get('/children', async (req, reply) => {
@@ -39,11 +50,14 @@ export async function childrenRoutes(app: FastifyInstance) {
       })
     }
 
+    const ageBand = computeAgeBand(req.body.dob)
+
     const child = await prisma.childProfile.create({
       data: {
         userId: user.id,
         firstName: req.body.firstName,
         dob: req.body.dob,
+        ageBand: ageBand ?? undefined,
         diagnosisStatus: req.body.diagnosisStatus || 'suspected',
         schoolSetting: req.body.schoolSetting,
         specialInterests: JSON.stringify(req.body.specialInterests || []),

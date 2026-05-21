@@ -77,6 +77,8 @@ export interface CheckInSignal {
   strengths_mentioned: string[]
   strategy_tried: { card_id: string; outcome: 'worked' | 'partial' | 'failed' | 'not_tried' } | null
   extraction_confidence: number
+  followup_needed: boolean
+  followup_questions: string[]
 }
 
 export interface CheckIn {
@@ -189,7 +191,7 @@ export interface BaselineAssessment {
 export interface CheckInResponse {
   checkin: CheckIn
   followupQuestions?: string[]
-  signalSummary?: string
+  signalSummary?: CheckInSignal
   cards?: ActionCard[]
   status: 'extracting' | 'follow-up-needed' | 'review' | 'complete'
 }
