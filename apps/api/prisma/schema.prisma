@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  clerkId      String         @unique
+  email        String         @unique
+  name         String?
+  createdAt    DateTime       @default(now())
+  children     ChildProfile[]
+}
+
+model ChildProfile {
+  id                 String              @id @default(cuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id])
+  firstName          String
+  dob                String?
+  ageBand            String?
+  diagnosisConfirmed Boolean             @default(false)
+  diagnosisStatus    String              @default("suspected")
+  schoolSetting      String?
+  language           String              @default("en")
+  specialInterests   String              @default("[]")
+  createdAt          DateTime            @default(now())
+  baseline           BaselineAssessment?
+  checkIns           CheckIn[]
+  domainStates       DomainState[]
+  actionCards        ActionCard[]
+  exports            ExportRecord[]
+  iepUpload          IEPUploadRecord?
+}
+
+model BaselineAssessment {
+  id            String       @id @default(cuid())
+  childId       String       @unique
+  child         ChildProfile @relation(fields: [childId], references: [id])
+  completedAt   DateTime?
+  domainProfile String       @default("[]")
+  currentGoals  String       @default("[]")
+  hasntWorked   String       @default("[]")
+  iepData       String?
+}
+
+model IEPUploadRecord {
+  id          String       @id @default(cuid())
+  childId     String       @unique
+  child       ChildProfile @relation(fields: [childId], references: [id])
+  uploadedAt  DateTime     @default(now())
+  s3Key       String?
+  parseStatus String       @default("pending")
+  parsedJson  String?
+  confirmedAt DateTime?
+  deletedAt   DateTime?
+}
+
+model CheckIn {
+  id                  String       @id @default(cuid())
+  childId             String
+  child               ChildProfile @relation(fields: [childId], references: [id])
+  weekNumber          Int
+  submittedAt         DateTime     @default(now())
+  rawText             String
+  followupText        String?
+  signalJson          String?
+  caregiverTone       String       @default("neutral")
+  extractionConfidence Float       @default(0.5)
+  correctionsMade     Boolean      @default(false)
+  cards               ActionCard[]
+}
+
+model DomainState {
+  id             String       @id @default(cuid())
+  childId        String
+  child          ChildProfile @relation(fields: [childId], references: [id])
+  domainCode     String
+  state          String       @default("CALIBRATING")
+  trendDirection String       @default("unknown")
+  weeksInState   Int          @default(0)
+  enteredAt      DateTime     @default(now())
+
+  @@unique([childId, domainCode])
+}
+
+model ActionCard {
+  id                String       @id @default(cuid())
+  childId           String
+  child             ChildProfile @relation(fields: [childId], references: [id])
+  checkinId         String
+  checkin           CheckIn      @relation(fields: [checkinId], references: [id])
+  slotType          String
+  domainCode        String
+  setting           String
+  title             String
+  strategyText      String
+  scriptText        String
+  watchForPositive  String       @default("[]")
+  watchForNegative  String       @default("[]")
+  whyNow            String
+  cardType          String       @default("strategy")
+  generatedAt       DateTime     @default(now())
+  rating            CardRating?
+}
+
+model CardRating {
+  id           String     @id @default(cuid())
+  cardId       String     @unique
+  card         ActionCard @relation(fields: [cardId], references: [id])
+  childId      String
+  rating       String
+  noteText     String?
+  ratedAt      DateTime   @default(now())
+  daysSinceIssue Int      @default(0)
+}
+
+model ExportRecord {
+  id          String       @id @default(cuid())
+  childId     String
+  child       ChildProfile @relation(fields: [childId], references: [id])
+  exportType  String
+  depthMode   String       @default("summary")
+  periodStart DateTime
+  periodEnd   DateTime
+  generatedAt DateTime     @default(now())
+  s3Key       String?
+  sharedAt    DateTime?
+}
