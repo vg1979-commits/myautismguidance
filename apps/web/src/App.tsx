@@ -19,12 +19,16 @@ import { Profile } from '@/pages/Profile'
 import { useAppStore } from '@/store/app'
 import { getChildren } from '@/lib/api'
 
+// When VITE_BYPASS_AUTH=true (E2E tests only), skip all Clerk auth checks.
+const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true'
+
 // Syncs Clerk identity into Zustand so api.ts interceptor can read it
 function ClerkUserSync() {
   const { isLoaded, isSignedIn, user } = useUser()
   const { setClerkUser, clearClerkUser } = useAppStore()
 
   useEffect(() => {
+    if (bypassAuth) { setClerkUser('test-user-id', 'test@example.com'); return }
     if (!isLoaded) return
     if (isSignedIn && user) {
       setClerkUser(user.id, user.primaryEmailAddress?.emailAddress ?? '')
@@ -47,6 +51,7 @@ const queryClient = new QueryClient({
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useUser()
+  if (bypassAuth) return <>{children}</>
   if (!isLoaded) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -63,12 +68,13 @@ function RequireProfile({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user) { setChecking(false); return }
+    const userId = bypassAuth ? 'test-user-id' : user?.id
+    if (!bypassAuth && (!isLoaded || !isSignedIn || !user)) { setChecking(false); return }
 
     // Always fetch from API to verify children belong to the current user.
     // The store-level setClerkUser handles clearing on user switch, but we
     // still verify here so a same-session account switch is caught too.
-    const storeMatchesUser = storedUserId === user.id
+    const storeMatchesUser = storedUserId === userId
     if (storeMatchesUser && storedChildren.length > 0) { setChecking(false); return }
 
     getChildren()
@@ -82,12 +88,12 @@ function RequireProfile({ children }: { children: React.ReactNode }) {
       .finally(() => setChecking(false))
   }, [isLoaded, isSignedIn, user?.id])
 
-  if (!isLoaded || checking) return (
+  if (checking) return (
     <div className="min-h-screen bg-paper flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   )
-  if (!isSignedIn) return <Navigate to="/landing" replace />
+  if (!bypassAuth && !isSignedIn) return <Navigate to="/landing" replace />
   if (storedChildren.length === 0) return <Navigate to="/onboarding/welcome" replace />
   return <>{children}</>
 }

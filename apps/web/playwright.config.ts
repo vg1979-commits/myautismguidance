@@ -17,11 +17,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: process.env.CI
-    ? {
-        command: 'npm run preview',
-        url: 'http://localhost:4173',
-        reuseExistingServer: !process.env.CI,
-      }
-    : undefined,
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: true,
+    timeout: 30000,
+    env: {
+      VITE_BYPASS_AUTH: 'true',
+    },
+  },
 })

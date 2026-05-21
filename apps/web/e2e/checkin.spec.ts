@@ -173,7 +173,7 @@ test.describe('Check-in happy path', () => {
     await textArea.fill('Alex had a good week overall. Some challenges with transitions at school but communication has been improving.')
 
     // Find and click the submit button
-    const submitButton = page.locator('button[type="submit"], button:has-text("Submit"), button:has-text("Continue"), button:has-text("Next")').first()
+    const submitButton = page.locator('button:has-text("Send")').first()
     await submitButton.waitFor({ state: 'visible', timeout: 5000 })
     await submitButton.click()
   })
@@ -185,7 +185,7 @@ test.describe('Check-in happy path', () => {
     await textArea.waitFor({ state: 'visible', timeout: 10000 })
     await textArea.fill('Alex had a great week. Communication improving, some sensory challenges.')
 
-    const submitButton = page.locator('button[type="submit"], button:has-text("Submit"), button:has-text("Continue"), button:has-text("Next")').first()
+    const submitButton = page.locator('button:has-text("Send")').first()
     await submitButton.click()
 
     // After submission, the plan view should show cards
