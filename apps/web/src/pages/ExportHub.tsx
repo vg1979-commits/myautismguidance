@@ -1,24 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/app'
 import { generateExport, getExports } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-import { Download, FileText, Users, Clock, ExternalLink } from 'lucide-react'
-import type { ExportType, ExportDepth } from '@myautismguidance/shared-types'
+import { Download, Clock, ExternalLink } from 'lucide-react'
+import type { ExportType, ExportDepth, ExportRecord } from '@myautismguidance/shared-types'
 import { cn } from '@/lib/utils'
 
-const SCHOOL_EXPORTS: { type: ExportType; title: string; desc: string; icon: typeof FileText }[] = [
+const SCHOOL_EXPORTS: { type: ExportType; title: string; desc: string }[] = [
   {
     type: 'iep-summary',
     title: 'IEP advocacy summary',
     desc: 'Progress data, SMART goal drafts, and talking points for your next IEP meeting.',
-    icon: FileText,
   },
   {
     type: 'teacher-card',
     title: 'Teacher quick-reference',
     desc: 'One-page summary of what helps, what to watch for, and how to communicate.',
-    icon: Users,
   },
 ]
 
@@ -37,21 +34,28 @@ interface ExportCardProps {
   badge?: string
 }
 
-function ExportCard({ title, desc, exportType, childId, badge }: ExportCardProps) {
+interface ExportCardPropsWithRefresh extends ExportCardProps {
+  onGenerated: () => void
+}
+
+function ExportCard({ title, desc, exportType, childId, badge, onGenerated }: ExportCardPropsWithRefresh) {
   const [depth, setDepth] = useState<ExportDepth>('summary')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState(false)
   const [showDepthModal, setShowDepthModal] = useState(false)
 
   async function generate() {
     if (!childId) return
     setLoading(true)
+    setError(false)
     try {
       const record = await generateExport(childId, exportType, depth)
       setDone(true)
+      onGenerated()
       if (record.downloadUrl) window.open(record.downloadUrl, '_blank')
     } catch {
-      // handle gracefully
+      setError(true)
     } finally {
       setLoading(false)
       setShowDepthModal(false)
@@ -68,6 +72,9 @@ function ExportCard({ title, desc, exportType, childId, badge }: ExportCardProps
       <h3 className="font-semibold text-ink-1 mb-1">{title}</h3>
       <p className="text-sm text-ink-3 leading-relaxed mb-4">{desc}</p>
 
+      {error && (
+        <p className="text-xs text-danger mb-2">Generation failed — please try again.</p>
+      )}
       {done ? (
         <div className="flex items-center gap-2 text-sm text-success font-medium">
           <span>✓</span> Document generated
@@ -107,8 +114,30 @@ function ExportCard({ title, desc, exportType, childId, badge }: ExportCardProps
   )
 }
 
+const EXPORT_TYPE_LABELS: Record<string, string> = {
+  'iep-summary': 'IEP Advocacy Summary',
+  'teacher-card': 'Teacher Quick-Reference',
+  'aba-report': 'ABA Therapist Report',
+  'ot-report': 'OT Report',
+  'slt-report': 'Speech-Language Report',
+  'psychologist-report': 'Psychologist Report',
+}
+
 export function ExportHub() {
   const { activeChildId } = useAppStore()
+  const [history, setHistory] = useState<ExportRecord[]>([])
+
+  async function loadHistory() {
+    if (!activeChildId) return
+    try {
+      const records = await getExports(activeChildId)
+      setHistory(records)
+    } catch {}
+  }
+
+  useEffect(() => {
+    loadHistory()
+  }, [activeChildId])
 
   return (
     <div className="min-h-screen bg-paper">
@@ -134,6 +163,7 @@ export function ExportHub() {
                 desc={desc}
                 exportType={type}
                 childId={activeChildId}
+                onGenerated={loadHistory}
               />
             ))}
           </div>
@@ -152,6 +182,7 @@ export function ExportHub() {
                 exportType={type}
                 childId={activeChildId}
                 badge={specialty}
+                onGenerated={loadHistory}
               />
             ))}
           </div>
@@ -160,35 +191,38 @@ export function ExportHub() {
         {/* Export history */}
         <section>
           <h2 className="font-serif text-2xl text-ink-1 mb-4">Export history</h2>
-          <div className="card divide-y divide-line">
-            {[
-              { type: 'Teacher quick-reference', date: 'May 12, 2026', status: 'active' },
-              { type: 'IEP advocacy summary', date: 'Apr 28, 2026', status: 'expired' },
-              { type: 'OT report', date: 'Apr 14, 2026', status: 'active' },
-            ].map(({ type, date, status }) => (
-              <div key={`${type}-${date}`} className="flex items-center justify-between px-5 py-4">
-                <div>
-                  <p className="text-sm font-medium text-ink-2">{type}</p>
-                  <p className="text-xs text-ink-4 mt-0.5 flex items-center gap-1.5">
-                    <Clock size={11} /> {date}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={cn(
-                    'text-2xs font-medium px-2 py-0.5 rounded-pill',
-                    status === 'active' ? 'bg-success-soft text-success' : 'bg-paper-3 text-ink-4'
-                  )}>
-                    {status === 'active' ? 'Active link' : 'Expired'}
-                  </span>
-                  {status === 'active' && (
-                    <button className="text-ink-4 hover:text-ink-2 transition-colors">
+          {history.length === 0 ? (
+            <div className="card p-6 text-center">
+              <p className="text-sm text-ink-4">No documents generated yet.</p>
+            </div>
+          ) : (
+            <div className="card divide-y divide-line">
+              {history.map((record) => (
+                <div key={record.id} className="flex items-center justify-between px-5 py-4">
+                  <div>
+                    <p className="text-sm font-medium text-ink-2">
+                      {EXPORT_TYPE_LABELS[record.exportType] || record.exportType}
+                    </p>
+                    <p className="text-xs text-ink-4 mt-0.5 flex items-center gap-1.5">
+                      <Clock size={11} />
+                      {new Date(record.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {' · '}
+                      {record.depthMode === 'clinical' ? 'Clinical detail' : 'Summary'}
+                    </p>
+                  </div>
+                  {record.downloadUrl && (
+                    <button
+                      onClick={() => window.open(record.downloadUrl, '_blank')}
+                      className="text-ink-4 hover:text-accent transition-colors"
+                      title="Open document"
+                    >
                       <ExternalLink size={14} />
                     </button>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>

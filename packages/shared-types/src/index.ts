@@ -137,12 +137,12 @@ export type ExportDepth = 'clinical' | 'summary'
 export interface ExportRecord {
   id: string
   childId: string
-  exportType: ExportType
-  depthMode: ExportDepth
+  exportType: string
+  depthMode: string
   periodStart: string
   periodEnd: string
   generatedAt: string
-  downloadUrl?: string
+  downloadUrl?: string | null
 }
 
 // ── IEP ───────────────────────────────────────────────────────────────────────

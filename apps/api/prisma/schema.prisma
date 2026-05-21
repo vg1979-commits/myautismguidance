@@ -129,5 +129,6 @@ model ExportRecord {
   periodEnd   DateTime
   generatedAt DateTime     @default(now())
   s3Key       String?
+  content     String?
   sharedAt    DateTime?
 }
