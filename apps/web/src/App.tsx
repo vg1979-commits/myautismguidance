@@ -32,9 +32,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
   )
-  if (!isSignedIn) return <Navigate to="/auth" replace />
+  if (!isSignedIn) return <Navigate to="/landing" replace />
   return <>{children}</>
 }
+
 
 function RequireOnboarding({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useUser()
