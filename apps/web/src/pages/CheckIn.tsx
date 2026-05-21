@@ -2,12 +2,22 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { useAppStore } from '@/store/app'
-import { submitCheckin, submitFollowup, confirmSignal } from '@/lib/api'
+import { submitCheckin, submitFollowup, confirmSignal, getCurrentCheckin } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import type { CheckInSignal } from '@myautismguidance/shared-types'
 import { DOMAIN_LABELS } from '@myautismguidance/shared-types'
+import { CalendarClock } from 'lucide-react'
 
-type Step = 'open' | 'loading-extract' | 'followup' | 'review' | 'loading-plan' | 'done'
+type Step = 'checking' | 'already-done' | 'open' | 'loading-extract' | 'followup' | 'review' | 'loading-plan' | 'done'
+
+function nextSunday(): string {
+  const now = new Date()
+  const daysUntilSunday = now.getDay() === 0 ? 7 : 7 - now.getDay()
+  const next = new Date(now)
+  next.setDate(now.getDate() + daysUntilSunday)
+  next.setHours(0, 0, 0, 0)
+  return next.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
 
 interface Bubble {
   type: 'app' | 'user'
@@ -23,7 +33,7 @@ const OPENING_PROMPTS = [
 export function CheckIn() {
   const navigate = useNavigate()
   const { activeChildId, setCurrentCards } = useAppStore()
-  const [step, setStep] = useState<Step>('open')
+  const [step, setStep] = useState<Step>('checking')
   const [checkinId, setCheckinId] = useState<string | null>(null)
   const [followupQuestions, setFollowupQuestions] = useState<string[]>([])
   const [currentFollowup, setCurrentFollowup] = useState(0)
@@ -33,6 +43,20 @@ export function CheckIn() {
   ])
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Check on mount if already checked in this week
+  useEffect(() => {
+    if (!activeChildId) { setStep('open'); return }
+    getCurrentCheckin(activeChildId)
+      .then((existing) => {
+        if (existing) {
+          setStep('already-done')
+        } else {
+          setStep('open')
+        }
+      })
+      .catch(() => setStep('open'))
+  }, [activeChildId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -75,9 +99,14 @@ export function CheckIn() {
           navigate('/')
         }, 3000)
       }
-    } catch {
-      addBubble({ type: 'app', text: "I had trouble processing that. Could you try again?" })
-      setStep('open')
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 409) {
+        setStep('already-done')
+      } else {
+        addBubble({ type: 'app', text: "I had trouble processing that. Could you try again?" })
+        setStep('open')
+      }
     }
   }
 
@@ -134,6 +163,46 @@ export function CheckIn() {
   }
 
   const inputActive = step === 'open' || step === 'followup'
+
+  // Spinner while checking for existing checkin
+  if (step === 'checking') {
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Already checked in this week
+  if (step === 'already-done') {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col">
+        <div className="h-14 border-b border-line bg-white flex items-center px-5 justify-between sticky top-0 z-10">
+          <button onClick={() => navigate('/')} className="text-sm text-ink-4 hover:text-ink-2 transition-colors">
+            ← Back
+          </button>
+          <span className="font-semibold text-ink-1">Weekly check-in</span>
+          <div className="w-16" />
+        </div>
+        <div className="flex-1 flex items-center justify-center px-5">
+          <div className="text-center max-w-sm">
+            <div className="w-14 h-14 rounded-pill bg-accent-soft flex items-center justify-center mx-auto mb-4">
+              <CalendarClock size={24} strokeWidth={1.5} className="text-accent" />
+            </div>
+            <h2 className="font-serif text-2xl text-ink-1 mb-2">You're all set this week</h2>
+            <p className="text-sm text-ink-3 leading-relaxed mb-6">
+              You've already checked in for this week. Your next check-in window opens on{' '}
+              <span className="font-medium text-ink-2">{nextSunday()}</span>.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => navigate('/')}>View this week's plan</Button>
+              <Button variant="ghost" onClick={() => navigate('/progress')}>See progress</Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-paper flex flex-col">

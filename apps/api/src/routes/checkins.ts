@@ -20,11 +20,19 @@ export async function checkinRoutes(app: FastifyInstance) {
       const child = await prisma.childProfile.findUnique({ where: { id: childId } })
       if (!child) return reply.status(404).send({ error: 'Child not found' })
 
+      const weekNumber = getWeekNumber()
+
+      // Prevent duplicate check-ins for the same week
+      const existing = await prisma.checkIn.findFirst({ where: { childId, weekNumber } })
+      if (existing) {
+        return reply.status(409).send({ error: 'Already checked in this week', checkinId: existing.id })
+      }
+
       // Create check-in record
       const checkin = await prisma.checkIn.create({
         data: {
           childId,
-          weekNumber: getWeekNumber(),
+          weekNumber,
           rawText: text,
           caregiverTone: 'neutral',
           extractionConfidence: 0.5,
@@ -189,6 +197,20 @@ export async function checkinRoutes(app: FastifyInstance) {
 
       const child = await prisma.childProfile.findUnique({ where: { id: checkin.childId } })
       if (!child) return reply.status(404).send({ error: 'Child not found' })
+
+      // Idempotency: if cards already exist for this checkin, return them
+      const existingCards = await prisma.actionCard.findMany({ where: { checkinId: checkin.id } })
+      if (existingCards.length > 0) {
+        return {
+          checkin,
+          cards: existingCards.map((c) => ({
+            ...c,
+            watchForPositive: JSON.parse(c.watchForPositive),
+            watchForNegative: JSON.parse(c.watchForNegative),
+          })),
+          status: 'complete',
+        }
+      }
 
       const signals = checkin.signalJson ? JSON.parse(checkin.signalJson) : {}
 
