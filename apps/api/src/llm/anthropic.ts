@@ -16,6 +16,7 @@ export async function extractSignals(
   },
   weekNumber: number
 ): Promise<{
+  summary: string
   caregiver_tone: string
   domains_mentioned: string[]
   domain_direction: Record<string, string>
@@ -31,8 +32,8 @@ export async function extractSignals(
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system: `You are a clinical signal extraction engine for a caregiver support platform for parents of autistic children.
+    max_tokens: 1500,
+    system: `You are a warm, empathetic assistant helping parents of autistic children reflect on their week and build a support plan.
 
 Extract structured signals from the caregiver's check-in text. The child is referred to as "${pseudonym}" internally.
 
@@ -44,6 +45,7 @@ Child context:
 
 Output ONLY valid JSON with this exact schema:
 {
+  "summary": string,  // 2-3 warm, conversational sentences reflecting back what the caregiver shared. Written in second person ("It sounds like...", "You mentioned...", "This week seems to have..."). Use the child's name (${childProfile.firstName}). Empathetic but not patronising. Never clinical.
   "caregiver_tone": "overwhelmed" | "coping" | "positive" | "neutral",
   "domains_mentioned": string[],  // from: communication, social, regulation, sensory, adl, academics, behavior, executive-function
   "domain_direction": { [domain]: "improving" | "stable" | "deteriorating" | "unknown" },
@@ -52,15 +54,20 @@ Output ONLY valid JSON with this exact schema:
   "strengths_mentioned": string[],
   "strategy_tried": { "card_id": "unknown", "outcome": "worked" | "partial" | "failed" | "not_tried" } | null,
   "extraction_confidence": number,  // 0.0-1.0
-  "followup_needed": boolean,  // true if confidence < 0.7
-  "followup_questions": string[]  // max 2, natural language, only if followup_needed=true
+  "followup_needed": boolean,  // true only if text is too vague to build a useful plan (confidence < 0.65)
+  "followup_questions": string[]  // max 2, warm conversational questions, only if followup_needed=true
 }
 
-Rules:
-- Never include the child's real name in output
-- If the caregiver mentions emotional keywords like "exhausted", "frustrated", "desperate" = overwhelmed
-- Extraction confidence below 0.7 means the text was too vague to generate a specific plan
-- Maximum 2 follow-up questions, conversational tone`,
+Rules for summary:
+- Reflect specific things the caregiver mentioned — not generic observations
+- Acknowledge difficulty before noting strengths (not the other way around)
+- End with a forward-leaning sentence ("Let me put together some ideas based on what you've shared.")
+- Never use clinical terms like "domains", "signals", "extraction"
+- Never compare ${childProfile.firstName} to other children
+
+Rules for extraction:
+- followup_needed = true only when the text genuinely lacks enough detail to generate specific strategies
+- Maximum 2 follow-up questions, warm and specific (not "Can you tell me more?")`,
     messages: [
       {
         role: 'user',
@@ -75,8 +82,8 @@ Rules:
   try {
     return JSON.parse(content.text)
   } catch {
-    // Fallback extraction
     return {
+      summary: "Thanks for sharing — let me put together some ideas based on what you've described.",
       caregiver_tone: 'neutral',
       domains_mentioned: [],
       domain_direction: {},
@@ -86,7 +93,7 @@ Rules:
       strategy_tried: null,
       extraction_confidence: 0.5,
       followup_needed: true,
-      followup_questions: ['Can you tell me more about what happened this week?'],
+      followup_questions: ['Can you share a specific moment from this week that stood out — good or hard?'],
     }
   }
 }

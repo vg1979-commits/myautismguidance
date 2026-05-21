@@ -71,8 +71,8 @@ export async function checkinRoutes(app: FastifyInstance) {
           }
         }
 
-        // If confidence low (first 4 weeks), show review
-        if (signals.extraction_confidence < 0.7 || checkin.weekNumber <= 4) {
+        // Show review when confidence is moderate — let the summary speak for itself
+        if (signals.extraction_confidence < 0.8) {
           return {
             checkin: { ...checkin, signalJson: signals },
             signalSummary: signals,

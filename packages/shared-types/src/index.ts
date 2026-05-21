@@ -68,6 +68,7 @@ export interface DomainState {
 export type SettingType = 'home' | 'school' | 'therapy' | 'community'
 
 export interface CheckInSignal {
+  summary: string
   checkin_week: number
   caregiver_tone: CaregiverTone
   domains_mentioned: DomainCode[]

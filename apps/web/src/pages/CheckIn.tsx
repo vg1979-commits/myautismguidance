@@ -6,7 +6,7 @@ import { submitCheckin, submitFollowup, confirmSignal, getCurrentCheckin } from 
 import { cn } from '@/lib/utils'
 import type { CheckInSignal } from '@myautismguidance/shared-types'
 import { DOMAIN_LABELS } from '@myautismguidance/shared-types'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, ChevronDown, ChevronUp } from 'lucide-react'
 
 type Step = 'checking' | 'already-done' | 'open' | 'loading-extract' | 'followup' | 'review' | 'loading-plan' | 'done'
 
@@ -22,6 +22,102 @@ function nextSunday(): string {
 interface Bubble {
   type: 'app' | 'user'
   text: string
+}
+
+function ReviewStep({
+  signal,
+  onConfirm,
+  onClarify,
+}: {
+  signal: CheckInSignal
+  onConfirm: () => void
+  onClarify: () => void
+}) {
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+
+  async function handleConfirm() {
+    setConfirming(true)
+    await onConfirm()
+  }
+
+  const hasDomains = signal.domains_mentioned.length > 0
+  const hasStrengths = signal.strengths_mentioned.length > 0
+  const hasTriggers = signal.triggers_mentioned.length > 0
+
+  return (
+    <div className="space-y-3 animate-[fadeIn_200ms_ease-out]">
+      {/* Summary as an app bubble */}
+      <div className="flex justify-start">
+        <div className="bubble-app max-w-[85%]">
+          {signal.summary || "Here's what I understood from your check-in."}
+        </div>
+      </div>
+
+      {/* Collapsible detail section */}
+      {(hasDomains || hasStrengths || hasTriggers) && (
+        <div className="ml-2">
+          <button
+            onClick={() => setDetailsOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-xs text-ink-4 hover:text-ink-2 transition-colors"
+          >
+            {detailsOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            {detailsOpen ? 'Hide details' : 'See what I captured'}
+          </button>
+
+          {detailsOpen && (
+            <div className="mt-2 p-3 bg-paper-2 border border-line rounded-md space-y-2.5 animate-[fadeIn_150ms_ease-out]">
+              {hasDomains && (
+                <div>
+                  <p className="text-2xs font-semibold text-ink-4 uppercase tracking-caps mb-1.5">Areas</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {signal.domains_mentioned.map((d) => {
+                      const dir = signal.domain_direction[d] || 'unknown'
+                      return (
+                        <span
+                          key={d}
+                          className={cn(
+                            'px-2 py-0.5 rounded-pill text-xs font-medium border',
+                            dir === 'improving'     ? 'border-success text-success bg-success-soft' :
+                            dir === 'deteriorating' ? 'border-danger text-danger bg-danger-soft' :
+                                                      'border-line text-ink-3 bg-white'
+                          )}
+                        >
+                          {DOMAIN_LABELS[d]} {dir === 'improving' ? '↑' : dir === 'deteriorating' ? '↓' : ''}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {hasStrengths && (
+                <div>
+                  <p className="text-2xs font-semibold text-success uppercase tracking-caps mb-1">Strengths</p>
+                  <p className="text-xs text-ink-2">{signal.strengths_mentioned.join(' · ')}</p>
+                </div>
+              )}
+              {hasTriggers && (
+                <div>
+                  <p className="text-2xs font-semibold text-warning uppercase tracking-caps mb-1">Triggers</p>
+                  <p className="text-xs text-ink-2">{signal.triggers_mentioned.join(' · ')}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2 pt-1">
+        <Button onClick={handleConfirm} loading={confirming} className="flex-1">
+          Yes, build my plan
+        </Button>
+        <Button variant="secondary" onClick={onClarify} disabled={confirming}>
+          Add something
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 const OPENING_PROMPTS = [
@@ -86,10 +182,7 @@ export function CheckIn() {
         }, 500)
       } else if (resp.status === 'review' && resp.signalSummary) {
         setSignalSummary(resp.checkin.signalJson || null)
-        setTimeout(() => {
-          addBubble({ type: 'app', text: `Here's what I understood from your check-in. Does this look right?` })
-          setStep('review')
-        }, 500)
+        setTimeout(() => setStep('review'), 400)
       } else {
         // Complete — go straight to loading plan
         if (resp.cards) setCurrentCards(resp.cards)
@@ -128,10 +221,7 @@ export function CheckIn() {
       try {
         const resp = await submitFollowup(checkinId, text)
         setSignalSummary(resp.checkin.signalJson || null)
-        setTimeout(() => {
-          addBubble({ type: 'app', text: "Here's what I understood. Does this look right?" })
-          setStep('review')
-        }, 500)
+        setTimeout(() => setStep('review'), 400)
       } catch {
         addBubble({ type: 'app', text: "Let's move forward with what you've shared." })
         setStep('review')
@@ -141,17 +231,14 @@ export function CheckIn() {
 
   async function handleConfirm() {
     if (!checkinId) return
-    setStep('loading-plan')
     try {
       const resp = await confirmSignal(checkinId)
       if (resp.cards) setCurrentCards(resp.cards)
     } catch {
       // navigate anyway
     }
-    setTimeout(() => {
-      setStep('done')
-      navigate('/')
-    }, 3000)
+    setStep('loading-plan')
+    setTimeout(() => navigate('/'), 2500)
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -243,61 +330,14 @@ export function CheckIn() {
 
           {/* Signal review */}
           {step === 'review' && signalSummary && (
-            <div className="animate-[fadeIn_200ms_ease-out] space-y-4">
-              <div className="card p-4 space-y-3">
-                <p className="text-xs font-medium text-ink-4 uppercase tracking-caps">What I understood</p>
-                {signalSummary.domains_mentioned.length > 0 && (
-                  <div>
-                    <p className="text-xs text-ink-4 mb-1.5">Areas mentioned</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {signalSummary.domains_mentioned.map((d) => {
-                        const dir = signalSummary.domain_direction[d] || 'unknown'
-                        return (
-                          <span
-                            key={d}
-                            className={cn(
-                              'px-2 py-1 rounded-pill text-xs font-medium border',
-                              dir === 'improving' ? 'border-success text-success bg-success-soft' :
-                              dir === 'deteriorating' ? 'border-danger text-danger bg-danger-soft' :
-                              'border-line text-ink-3'
-                            )}
-                          >
-                            {DOMAIN_LABELS[d]} {dir === 'improving' ? '↑' : dir === 'deteriorating' ? '↓' : '→'}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                {signalSummary.caregiver_tone && (
-                  <div>
-                    <p className="text-xs text-ink-4 mb-1">Your tone</p>
-                    <span className="capitalize text-sm text-ink-2">{signalSummary.caregiver_tone}</span>
-                  </div>
-                )}
-                {signalSummary.strengths_mentioned.length > 0 && (
-                  <div>
-                    <p className="text-xs text-ink-4 mb-1">Strengths noted</p>
-                    <p className="text-sm text-ink-2">{signalSummary.strengths_mentioned.join(', ')}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <Button onClick={handleConfirm} className="flex-1">
-                  Looks right — build my plan
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    addBubble({ type: 'app', text: "What would you like to correct?" })
-                    setStep('open')
-                  }}
-                >
-                  Clarify
-                </Button>
-              </div>
-            </div>
+            <ReviewStep
+              signal={signalSummary}
+              onConfirm={handleConfirm}
+              onClarify={() => {
+                addBubble({ type: 'app', text: "Of course — what would you like to add or correct?" })
+                setStep('open')
+              }}
+            />
           )}
 
           {/* Plan loading overlay */}
